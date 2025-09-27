@@ -31,6 +31,7 @@ async def upload_file(
     content = await file.read()
     sha = hashlib.sha256(content).hexdigest()
     filename = file.filename
+
     if filename is None:
         return {"error": "Filename is required."}
 
@@ -46,7 +47,9 @@ async def upload_file(
         storage_path=str(file_path),
         mime_type=file.content_type or "application/octet-stream",
     )
+
     file_record = Files.model_validate(file_data)
+
     db.add(file_record)
     db.commit()
     db.refresh(file_record)

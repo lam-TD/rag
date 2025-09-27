@@ -5,3 +5,4 @@ app.db
 .env
 .pytest_cache/
 .ruff_cache/
+uploads/
