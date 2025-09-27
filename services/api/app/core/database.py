@@ -1,6 +1,6 @@
 import os
 
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import create_engine, Session
 
 user = os.getenv("POSTGRES_USER", "user")
 password = os.getenv("POSTGRES_PASSWORD", "password")
@@ -14,3 +14,8 @@ DATABASE_URL = os.getenv(
 )
 
 engine = create_engine(DATABASE_URL)
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
