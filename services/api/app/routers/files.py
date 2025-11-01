@@ -1,9 +1,11 @@
 import hashlib
+from json import load
 from typing import Annotated
 from pathlib import Path
 from fastapi import APIRouter, File, Depends, Path as PathParams, UploadFile
 from sqlmodel import Session, select
 
+from app.core.document_loader import load_document, split_document
 from app.models.files import Files, FileCreate
 
 from app.core.database import get_session
@@ -65,4 +67,8 @@ async def get_file_summary(
     file = db.get(Files, file_id)
     if not file:
         return {"error": "File not found."}
-    return {"summary": "This is a summary", "file": file}
+
+    chunks = split_document(str(file.storage_path))
+    print(load_document(str(file.storage_path)))
+    print(chunks)
+    return {"summary": chunks}
