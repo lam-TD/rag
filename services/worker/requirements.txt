@@ -1,7 +1,0 @@
-sqlalchemy>=2.0
-psycopg[binary]
-httpx
-tenacity
-python-dotenv
-boto3
-numpy

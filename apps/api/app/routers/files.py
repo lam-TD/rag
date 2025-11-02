@@ -1,11 +1,10 @@
 import hashlib
-from json import load
 from typing import Annotated
 from pathlib import Path
 from fastapi import APIRouter, File, Depends, Path as PathParams, UploadFile
 from sqlmodel import Session, select
 
-from app.core.document_loader import load_document, split_document
+from app.core.document_loader import split_document
 from app.models.files import Files, FileCreate
 
 from app.core.database import get_session
@@ -20,7 +19,7 @@ UPLOAD_PATH.mkdir(parents=True, exist_ok=True)
 @router.get("")
 async def read_files(db: Annotated[Session, Depends(get_session)]):
 
-    files = db.exec(select(Files)).all()
+    files = db.exec(select(Files).order_by(Files.id.desc())).all()
     return {"files": files}
 
 
@@ -69,6 +68,5 @@ async def get_file_summary(
         return {"error": "File not found."}
 
     chunks = split_document(str(file.storage_path))
-    print(load_document(str(file.storage_path)))
-    print(chunks)
+
     return {"summary": chunks}
