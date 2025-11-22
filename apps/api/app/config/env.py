@@ -18,6 +18,12 @@ class Env(BaseSettings):
     db_username: str = ""
     db_password: str = ""
 
+    # embedding configuration
+    embedding_default: str = ""
+    embedding_api_key: str = ""
+    embedding_base_url: str = ""
+    embedding_default_model: str = ""
+
     model_config = SettingsConfigDict(env_file=".env.dev")
 
 

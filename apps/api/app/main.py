@@ -2,6 +2,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI
 
 from app.config.database import DatabaseConfig, get_db_config
+
 from .routers import files
 from .config.env import Env, get_env
 
@@ -13,5 +14,8 @@ app.include_router(files.router)
 
 
 @app.get("/")
-def read_root(settings: Annotated[Env, Depends(get_env)], db_config: Annotated[DatabaseConfig, Depends(get_db_config)]):
+def read_root(
+    settings: Annotated[Env, Depends(get_env)],
+    db_config: Annotated[DatabaseConfig, Depends(get_db_config)],
+):
     return {"settings": settings, "db_config": db_config}
