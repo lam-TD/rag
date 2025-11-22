@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI
 
 from app.config.database import DatabaseConfig, get_db_config
-from .routers import files, source
+from .routers import files
 from .config.env import Env, get_env
 
 env = get_env()
@@ -10,7 +10,6 @@ env = get_env()
 app = FastAPI(title=env.app_name)
 
 app.include_router(files.router)
-app.include_router(source.router)
 
 
 @app.get("/")

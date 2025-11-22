@@ -26,6 +26,12 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+  
+  tika:
+    image: apache/tika:3.2.3.0-full
+    networks:
+     - backend
+
 
 volumes:
   pgdata:

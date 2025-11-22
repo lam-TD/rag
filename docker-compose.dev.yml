@@ -7,6 +7,8 @@ services:
       # - ./db/pgdata:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d
     # restart: unless-stopped
+  tika:
+    container_name: rag_tika_dev
 
   api:
     build:
