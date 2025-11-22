@@ -19,8 +19,8 @@ UPLOAD_PATH.mkdir(parents=True, exist_ok=True)
 @router.get("")
 async def read_files(db: Annotated[Session, Depends(get_session)]):
 
+    return {"files": []}
     files = db.exec(select(Files).order_by(Files.id.desc())).all()
-    return {"files": files}
 
 
 @router.post("")

@@ -6,3 +6,6 @@ app.db
 .pytest_cache/
 .ruff_cache/
 uploads/
+
+.env.dev
+.env.prod
