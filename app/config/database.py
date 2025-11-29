@@ -16,7 +16,7 @@ def get_db_config():
     env = get_env()
     return DatabaseConfig(
         host=env.db_host,
-        port=env.db_port,
+        port="5432",
         name=env.db_name,
         password=env.db_password,
         username=env.db_username,

@@ -33,7 +33,7 @@ class PGVector:
         print(db_url)
         engine = create_async_engine(
             db_url,
-            echo=conf.echo,
+            echo=True,
             future=True,
         )
         return engine

@@ -2,6 +2,16 @@ from typing import Optional
 from httpx import AsyncClient
 
 
+class EmbeddingResult:
+    def __init__(
+        self,
+        total_tokens: Optional[int] = None,
+        embeddings: Optional[list] = None,
+    ) -> None:
+        self.total_tokens = total_tokens
+        self.embeddings = embeddings
+
+
 class JinaEmbedding:
 
     def __init__(
@@ -37,7 +47,12 @@ class JinaEmbedding:
                 "/v1/embeddings", json=payload, headers=headers
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            return EmbeddingResult(
+                embeddings=result["data"],
+                total_tokens=result.get("usage", {}).get("total_tokens"),
+            )
 
         except Exception as e:
             print(e)

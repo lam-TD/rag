@@ -1,11 +1,15 @@
 from functools import lru_cache
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ENV_FILE = Path(".env.dev")
 
 
 class Env(BaseSettings):
     """Load config from .env file"""
 
-    model_config = SettingsConfigDict(env_file=".env.dev", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     # app configuaration
     app_name: str = ""
@@ -26,6 +30,18 @@ class Env(BaseSettings):
     embedding_default_model: str = ""
 
 
+def _env_file_version() -> int:
+    try:
+        return ENV_FILE.stat().st_mtime_ns
+    except FileNotFoundError:
+        return 0
+
+
+@lru_cache(maxsize=1)
+def _load_env(_: int) -> Env:
+    # The argument is only used to invalidate the cache when the env file changes.
+    return Env()
+
 
 def get_env():
-    return Env()
+    return _load_env(_env_file_version())
