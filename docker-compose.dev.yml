@@ -2,7 +2,7 @@ services:
   db:
     container_name: rag_db_dev
     ports:
-      - "${DB_PORT:-5433}:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       # - ./db/pgdata:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d
@@ -12,23 +12,21 @@ services:
 
   api:
     build:
-      context: ./apps/api
       dockerfile: dockerfile.dev
     container_name: rag_api_dev
-    env_file:
-      ./.env.dev
+    env_file: ./.env.dev
 
     volumes:
       - ./uploads:/uploads
     restart: unless-stopped
 
     develop:
-    # Create a `watch` configuration to update the app
-    # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
+      # Create a `watch` configuration to update the app
+      # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
       watch:
         # Sync the working directory with the `/app` directory in the container
         - action: sync
-          path: ./apps/api
+          path: .
           target: /app
           # Exclude the project virtual environment — it could be for a
           # different platform in the container
@@ -38,3 +36,6 @@ services:
         # Rebuild the image if dependencies change by checking uv.lock
         - action: rebuild
           path: ./uv.lock
+
+        - action: rebuild
+          path: ./.env.dev

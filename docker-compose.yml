@@ -1,7 +1,7 @@
 services:
   api:
     build:
-      context: ./apps/api
+      context: .
     ports:
       - "${APP_PORT:-8000}:8000"
     networks:
