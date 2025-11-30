@@ -10,7 +10,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import Column, Integer, String, text
+from sqlalchemy import Column, Integer, String, select, text
 from app.config.env import Env, get_env
 from app.services.chunking.simple_chunker import SimpleChunker
 from app.services.db.pgvector import get_db_session
@@ -73,7 +73,6 @@ async def upload_file(
             default_model=env.embedding_default_model,
         )
 
-        embedding_result = None
         vector_literal = []
 
         result = await embedding_service.embed_texts(text=chunks)
@@ -86,8 +85,6 @@ async def upload_file(
         for chunk, embed in zip(chunks, embedding_result.embeddings):
             vector_literal = embed["embedding"]
 
-            # vector_literal = "[" + ",".join(str(v) for v in vector_literal) + "]"
-
             item = Embeddings(
                 document_id=str(document_id),
                 embedding=vector_literal,
@@ -96,38 +93,6 @@ async def upload_file(
                 chunk_metadata="{}",
             )
             db_session.add(item)
-            continue
-
-            await db_session.execute(
-                text(
-                    """
-                        INSERT INTO embeddings (
-                            document_id,
-                            embedding,
-                            content,
-                            token_count,
-                            metadata,
-                            chunk_metadata
-                        )
-                        VALUES (
-                            :document_id,
-                            :embedding::vector,
-                            :content,
-                            :token_count,
-                            :metadata::jsonb,
-                            :chunk_metadata::jsonb
-                        )
-                    """
-                ),
-                {
-                    "document_id": document_id,
-                    "embedding": vector_literal,
-                    "content": chunk,
-                    "token_count": 0,
-                    "metadata": {},
-                    "chunk_metadata": {},
-                },
-            )
 
         await db_session.commit()
 
@@ -138,4 +103,53 @@ async def upload_file(
         "doc_id": document_id,
         "chunk_count": len(chunks),
         "sample_chunk": result,
+    }
+
+
+@router.post("/retrieve")
+async def get_file_embeddings(
+    question: Annotated[str, Any],
+    env: Annotated[Env, Depends(get_env)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+
+    embedding_service = JinaEmbedding(
+        base_url=env.embedding_base_url,
+        api_key=env.embedding_api_key,
+        default_model=env.embedding_default_model,
+    )
+
+    embedding_question = await embedding_service.embed_texts(text=[question])
+
+    if embedding_question is None or embedding_question.embeddings is None:
+        raise HTTPException(status_code=500, detail="Embedding service error")
+
+    query = Embeddings.embedding.cosine_distance(
+        embedding_question.embeddings[0]["embedding"]
+    )
+
+    try:
+        result = await db_session.execute(
+            select(Embeddings, query.label("distance")).order_by(query).limit(5)
+        )
+        rows = result.all()
+
+        results = []
+        for chunk, distance in rows:
+            results.append(
+                {
+                    "id": str(chunk.id),
+                    "doc_id": chunk.document_id,
+                    "text": chunk.content,
+                    "distance": float(distance),
+                    "similarity": float(1 - distance),
+                }
+            )
+        
+    except Exception as e:
+        return HTTPException(status_code=500, detail=str(e))
+    
+    return {
+        "question": question,
+        "results": results,
     }
