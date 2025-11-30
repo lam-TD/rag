@@ -6,7 +6,6 @@ services:
       - "${APP_PORT:-8000}:8000"
     networks:
      - backend
-    # restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -31,10 +30,6 @@ services:
     image: apache/tika:3.2.3.0-full
     networks:
      - backend
-
-
-volumes:
-  pgdata:
 
 networks:
   backend:

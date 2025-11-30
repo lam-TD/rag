@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Dict, List, Tuple
 from pathlib import Path
 from uuid import uuid4
 from fastapi import (
@@ -12,13 +12,16 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Column, Integer, String, select, text
 from app.config.env import Env, get_env
+from app.services.ask.message import build_messages_for_rag
 from app.services.chunking.simple_chunker import SimpleChunker
 from app.services.db.pgvector import get_db_session
 from app.services.embeddings.jina_service import JinaEmbedding
+from app.services.llm import google_gen_ai
 from app.services.text_extractor.tika_extractor import TikaExtractor
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import UUID
+from google import genai
 
 router = APIRouter(tags=["Files"], prefix="/api/v1/files")
 
@@ -85,12 +88,16 @@ async def upload_file(
         for chunk, embed in zip(chunks, embedding_result.embeddings):
             vector_literal = embed["embedding"]
 
+            chunk_metadata = {
+                "filename": file.filename,
+            }
+
             item = Embeddings(
                 document_id=str(document_id),
                 embedding=vector_literal,
                 content=chunk,
                 token_count=0,
-                chunk_metadata="{}",
+                chunk_metadata=chunk_metadata,
             )
             db_session.add(item)
 
@@ -143,13 +150,59 @@ async def get_file_embeddings(
                     "text": chunk.content,
                     "distance": float(distance),
                     "similarity": float(1 - distance),
+                    "chunk_metadata": chunk.chunk_metadata,
                 }
             )
-        
+
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))
-    
+
+    messages, used_hits = build_messages_for_rag(question, results)
+
+    system, user = to_system_and_user(messages)
+
+    client = genai.Client()
+    answer = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=user,
+        config={
+            "temperature": 0.8,
+            "max_output_tokens": 1024,
+            "top_p": 0.8,
+            "top_k": 40,
+        },
+    )
+
     return {
         "question": question,
-        "results": results,
+        "answer": answer.text,
+    }
+
+
+def to_system_and_user(messages: List[Dict[str, str]]) -> Tuple[str, str]:
+    system = ""
+    user_parts = []
+    for m in messages:
+        role = m.get("role")
+        if role == "system":
+            system = m.get("content", "")
+        elif role == "user":
+            user_parts.append(m.get("content", ""))
+    return system, "\n\n".join(p for p in user_parts if p).strip() or "..."
+
+
+@router.post("/ask")
+async def ask_file_question(
+    question: Annotated[str, Any],
+    env: Annotated[Env, Depends(get_env)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    from app.services.ask.message import build_messages_for_rag
+
+    messages, used_hits = build_messages_for_rag(question, [])
+
+    return {
+        "question": messages,
+        "used_hits": used_hits,
+        # "used_chunks": used_chunks,
     }

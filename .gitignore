@@ -9,3 +9,5 @@ uploads/
 
 .env.dev
 .env.prod
+  
+./storage/pgdata
