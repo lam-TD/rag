@@ -9,11 +9,14 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.env import Env, get_env
-from app.models.collection import Collection as CollectionSchema
+from app.models.document import Document
+from app.models.embedding import Embedding
 from app.schemas.rag import EmbeddingRequest
 from app.services.ask.message import build_messages_for_rag
 from app.services.chunking.simple_chunker import SimpleChunker
+from app.services.collection_service import CollectionService
 from app.services.db.pgvector import get_db_session
+from app.services.dependencies import get_collection_service
 from app.services.embeddings.jina_service import JinaEmbedding
 from app.services.text_extractor.tika_extractor import TikaExtractor
 from google import genai
@@ -28,20 +31,13 @@ async def upload_file(
     env: Annotated[Env, Depends(get_env)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     payload: Annotated[EmbeddingRequest, Depends(EmbeddingRequest.as_form)],
+    collection_service: Annotated[CollectionService, Depends(get_collection_service)],
 ):
     content = await file.read()
     document_id = uuid4()
 
     try:
-        collection_stmt = await db_session.execute(
-            select(CollectionSchema).where(CollectionSchema.id == collection_id)
-        )
-
-        collection_stmt_result = collection_stmt.scalar_one_or_none()
-        collection_name = collection_stmt_result.name
-
-        if collection_stmt_result is None:
-            raise HTTPException(status_code=404, detail="Collection not found")
+        collection_model = await collection_service.find_or_fail(collection_id)
 
         text_extractor = TikaExtractor(base_url="http://tika:9998")
         text_result = await text_extractor.extract(content)
@@ -52,20 +48,6 @@ async def upload_file(
             text=text_result,
             base_metadata={"document_id": document_id, "filename": file.filename},
         )
-
-        if collection_stmt_result is None:
-            new_collection = CollectionSchema(
-                id=uuid4(),
-                name=collection_name,
-                embedding_model=env.embedding_default_model,
-                embedding_dimension=1024,
-                distance_metric="cosine",
-                collection_metadata={"description": "Auto created collection"},
-            )
-            db_session.add(new_collection)
-            await db_session.commit()
-            await db_session.refresh(new_collection)
-            collection_stmt_result = new_collection
 
         embedding_service = JinaEmbedding(
             base_url=env.embedding_base_url,
@@ -80,21 +62,26 @@ async def upload_file(
         if result is None or result.embeddings is None:
             raise HTTPException(status_code=500, detail="Embedding service error")
 
+        document_model = Document(
+            collection_id=collection_id,
+            cmetadata={"filename": file.filename, "total_tokens": result.total_tokens},
+        )
+        db_session.add(document_model)
+        await db_session.commit()
+        await db_session.refresh(document_model)
+
         embedding_result = result
 
         for chunk, embed in zip(chunks, embedding_result.embeddings):
             vector_literal = embed["embedding"]
 
-            chunk_metadata = {
-                "filename": file.filename,
-            }
-
-            item = Embeddings(
+            item = Embedding(
                 embedding=vector_literal,
                 content=chunk,
                 token_count=0,
-                chunk_metadata=chunk_metadata,
-                collection_id=str(collection_stmt_result.id),
+                cmetadata={},
+                collection_id=str(collection_model.id),
+                document_id=str(document_model.id),
             )
             db_session.add(item)
 
@@ -104,7 +91,7 @@ async def upload_file(
         return HTTPException(status_code=500, detail=str(e))
 
     return {
-        "doc_id": document_id,
+        "doc_id": document_model.id,
         "chunk_count": len(chunks),
         "sample_chunk": result,
     }
