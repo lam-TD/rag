@@ -1,5 +1,4 @@
 from typing import Annotated, Any, Dict, List, Tuple
-from pathlib import Path
 from uuid import uuid4
 from fastapi import (
     APIRouter,
@@ -8,58 +7,42 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import Column, Integer, String, select, text
 from app.config.env import Env, get_env
+from app.models.collection import Collection as CollectionSchema
+from app.schemas.rag import EmbeddingRequest
 from app.services.ask.message import build_messages_for_rag
 from app.services.chunking.simple_chunker import SimpleChunker
 from app.services.db.pgvector import get_db_session
 from app.services.embeddings.jina_service import JinaEmbedding
-from app.services.llm import google_gen_ai
 from app.services.text_extractor.tika_extractor import TikaExtractor
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON
-from sqlalchemy.dialects.postgresql import UUID
 from google import genai
 
-router = APIRouter(tags=["Files"], prefix="/api/v1/files")
-
-# UPLOAD_PATH = Path("/storage/uploads")
-# UPLOAD_PATH.mkdir(parents=True, exist_ok=True)
+router = APIRouter(tags=["Documents"], prefix="/api/v1/collections")
 
 
-class Base(DeclarativeBase):
-    pass
-
-
-class Embeddings(Base):
-    __tablename__ = "embeddings"
-
-    # Define your table columns here
-    id: Mapped[uuid4] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid4,  # tự generate uuid ở app
-        index=True,
-    )
-    document_id = Column(String, index=True)
-    embedding = Column(Vector(1024))
-    content = Column(String)
-    token_count = Column(Integer)
-    chunk_metadata = mapped_column(JSON)
-
-
-@router.post("")
+@router.post("/{collection_id}/documents")
 async def upload_file(
+    collection_id: str,
     file: Annotated[UploadFile, File],
     env: Annotated[Env, Depends(get_env)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    payload: Annotated[EmbeddingRequest, Depends(EmbeddingRequest.as_form)],
 ):
     content = await file.read()
     document_id = uuid4()
 
     try:
+        collection_stmt = await db_session.execute(
+            select(CollectionSchema).where(CollectionSchema.id == collection_id)
+        )
+
+        collection_stmt_result = collection_stmt.scalar_one_or_none()
+        collection_name = collection_stmt_result.name
+
+        if collection_stmt_result is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+
         text_extractor = TikaExtractor(base_url="http://tika:9998")
         text_result = await text_extractor.extract(content)
 
@@ -69,6 +52,20 @@ async def upload_file(
             text=text_result,
             base_metadata={"document_id": document_id, "filename": file.filename},
         )
+
+        if collection_stmt_result is None:
+            new_collection = CollectionSchema(
+                id=uuid4(),
+                name=collection_name,
+                embedding_model=env.embedding_default_model,
+                embedding_dimension=1024,
+                distance_metric="cosine",
+                collection_metadata={"description": "Auto created collection"},
+            )
+            db_session.add(new_collection)
+            await db_session.commit()
+            await db_session.refresh(new_collection)
+            collection_stmt_result = new_collection
 
         embedding_service = JinaEmbedding(
             base_url=env.embedding_base_url,
@@ -93,11 +90,11 @@ async def upload_file(
             }
 
             item = Embeddings(
-                document_id=str(document_id),
                 embedding=vector_literal,
                 content=chunk,
                 token_count=0,
                 chunk_metadata=chunk_metadata,
+                collection_id=str(collection_stmt_result.id),
             )
             db_session.add(item)
 
@@ -119,7 +116,6 @@ async def get_file_embeddings(
     env: Annotated[Env, Depends(get_env)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ):
-
     embedding_service = JinaEmbedding(
         base_url=env.embedding_base_url,
         api_key=env.embedding_api_key,

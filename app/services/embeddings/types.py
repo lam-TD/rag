@@ -9,6 +9,7 @@ class ChunkDict(TypedDict, total=False):
     - Bắt buộc: text, doc_id, page
     - Tuỳ chọn: embedding, metadata
     """
+
     text: str
     doc_id: str
     page: int

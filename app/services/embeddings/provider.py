@@ -19,7 +19,9 @@ class EmbeddingProvider(ABC):
     """Interface Strategy cho nhà cung cấp embedding."""
 
     @abstractmethod
-    def embed_texts(self, texts: list[str], *, task: str, dim: int) -> list[list[float]]:
+    def embed_texts(
+        self, texts: list[str], *, task: str, dim: int
+    ) -> list[list[float]]:
         """
         Trả về danh sách vector theo thứ tự đầu vào.
         Phải đảm bảo mỗi vector có đúng chiều `dim`, nếu không -> raise ValueError.
@@ -55,7 +57,9 @@ class JinaProvider(EmbeddingProvider):
             headers["Authorization"] = f"Bearer {self._api_key}"
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=self._timeout, context=self._ssl_ctx) as resp:
+            with urllib.request.urlopen(
+                req, timeout=self._timeout, context=self._ssl_ctx
+            ) as resp:
                 raw = resp.read().decode("utf-8")
         except (urllib.error.HTTPError, urllib.error.URLError) as exc:
             raise RuntimeError(f"Jina request failed: {exc}") from exc
@@ -67,7 +71,9 @@ class JinaProvider(EmbeddingProvider):
             raise RuntimeError("Jina response has unexpected structure")
         return parsed  # type: ignore[return-value]
 
-    def embed_texts(self, texts: list[str], *, task: str, dim: int) -> list[list[float]]:
+    def embed_texts(
+        self, texts: list[str], *, task: str, dim: int
+    ) -> list[list[float]]:
         payload: dict[str, object] = {
             "model": self._model,
             "input": texts,
@@ -84,7 +90,9 @@ class JinaProvider(EmbeddingProvider):
             if not isinstance(item, dict):
                 raise RuntimeError("Invalid item in 'data'")
             emb = item.get("embedding")
-            if not isinstance(emb, list) or not all(isinstance(x, (float, int)) for x in emb):
+            if not isinstance(emb, list) or not all(
+                isinstance(x, (float, int)) for x in emb
+            ):
                 raise RuntimeError("Invalid 'embedding' format")
             vec = [float(x) for x in emb]
             if len(vec) != dim:
@@ -101,12 +109,19 @@ class OllamaProvider(EmbeddingProvider):
     Chỉ dùng khi bạn muốn thay đổi provider nhanh để thử nghiệm.
     """
 
-    def __init__(self, host: str = "http://localhost:11434", model: str = "nomic-embed-text", timeout: int = 60) -> None:
+    def __init__(
+        self,
+        host: str = "http://localhost:11434",
+        model: str = "nomic-embed-text",
+        timeout: int = 60,
+    ) -> None:
         self._host = host.rstrip("/")
         self._model = model
         self._timeout = timeout
 
-    def embed_texts(self, texts: list[str], *, task: str, dim: int) -> list[list[float]]:  # noqa: ARG002
+    def embed_texts(
+        self, texts: list[str], *, task: str, dim: int
+    ) -> list[list[float]]:  # noqa: ARG002
         out: list[list[float]] = []
         for t in texts:
             payload = {"model": self._model, "prompt": t}
@@ -127,7 +142,9 @@ class OllamaProvider(EmbeddingProvider):
             except json.JSONDecodeError as exc:
                 raise RuntimeError("Ollama response is not valid JSON") from exc
             emb = parsed.get("embedding")
-            if not isinstance(emb, list) or not all(isinstance(x, (float, int)) for x in emb):
+            if not isinstance(emb, list) or not all(
+                isinstance(x, (float, int)) for x in emb
+            ):
                 raise RuntimeError("Invalid 'embedding' in Ollama response")
             vec = [float(x) for x in emb]
             if len(vec) != dim:

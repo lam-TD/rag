@@ -1,8 +1,10 @@
 # timing.py
-import time, logging
+import time
+import logging
 from contextlib import contextmanager
 
 log = logging.getLogger("ingest")
+
 
 @contextmanager
 def span(name: str, ctx: dict):
@@ -11,4 +13,4 @@ def span(name: str, ctx: dict):
         yield
     finally:
         dt = (time.perf_counter() - t0) * 1000
-        log.info("span", extra={"span": name, "ms": round(dt,2), **ctx})
+        log.info("span", extra={"span": name, "ms": round(dt, 2), **ctx})

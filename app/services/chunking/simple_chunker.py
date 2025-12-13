@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from app.services.chunking.interface import TextChunk, TextChunker
+from app.services.chunking.interface import TextChunker
 
 
 class SimpleChunker(TextChunker):
@@ -26,7 +26,7 @@ class SimpleChunker(TextChunker):
         text: str,
         max_chars: int | None = None,
         overlap_chars: int | None = None,
-        base_metadata: Dict[str, Any] | None = None
+        base_metadata: Dict[str, Any] | None = None,
     ) -> List[str]:
         if not text or not text.strip():
             return []

@@ -27,7 +27,9 @@ class EmbeddingServiceFactory:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def create(self, provider: EmbeddingProviderName | None = None) -> EmbeddingServiceProtocol:
+    def create(
+        self, provider: EmbeddingProviderName | None = None
+    ) -> EmbeddingServiceProtocol:
         provider_name = provider or self._settings.embedding_provider
 
         if provider_name == "jina":

@@ -25,7 +25,9 @@ __all__ = [
 T = TypeVar("T")
 
 
-def retry(max_attempts: int = 3, backoff: float = 0.5) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def retry(
+    max_attempts: int = 3, backoff: float = 0.5
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator retry theo cấp số nhân đơn giản.
     - max_attempts: số lần thử
@@ -93,7 +95,7 @@ class CleanStep(Step):
         pages: list[dict[str, Any]] = ctx.get("pages", [])
         cleaned: list[dict[str, Any]] = []
         for p in pages:
-            text = str(p.get("text", "")).replace("\u00A0", " ").strip()
+            text = str(p.get("text", "")).replace("\u00a0", " ").strip()
             if len(text) >= self._min_len:
                 cleaned.append({"page": int(p.get("page", 0)), "text": text})
         ctx["pages"] = cleaned

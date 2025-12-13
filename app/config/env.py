@@ -2,8 +2,6 @@ from functools import lru_cache
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.services.llm import google_gen_ai
-
 
 ENV_FILE = Path(".env.dev")
 

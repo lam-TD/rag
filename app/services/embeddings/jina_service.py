@@ -13,7 +13,6 @@ class EmbeddingResult:
 
 
 class JinaEmbedding:
-
     def __init__(
         self,
         api_key: str,
