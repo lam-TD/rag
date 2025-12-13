@@ -31,14 +31,14 @@ async def index(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    response_model=ApiResponse[CollectionCreateRequest],
+    response_model=ApiResponse[CollectionItemReponse],
 )
 async def store(
     payload: Annotated[CollectionCreateRequest, Body(...)],
     collection_service: Annotated[CollectionService, Depends(get_collection_service)],
-) -> ApiResponse[CollectionCreateRequest]:
+) -> ApiResponse[CollectionItemReponse]:
     collection = await collection_service.create(payload)
 
     return ApiResponse().ok(
-        data=CollectionCreateRequest.model_validate(collection),
+        data=CollectionItemReponse.model_validate(collection),
     )

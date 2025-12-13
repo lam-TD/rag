@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class CollectionItemReponse(BaseModel):
     id: uuid.UUID
     name: str
+    embedding_model: str
     created_at: datetime
     updated_at: datetime
 
