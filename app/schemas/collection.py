@@ -27,3 +27,12 @@ class CollectionCreateRequest(BaseModel):
         "extra": "forbid",
         "from_attributes": True,
     }
+
+class CollectionChatRequet(BaseModel):
+    question: str = Field(max_length=1000)
+    top_k: float = Field(default=0.7)
+
+
+class CollectionChatReponse(CollectionChatRequet):
+    answer: str
+    context: list[Any]

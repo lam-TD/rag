@@ -27,6 +27,14 @@ class CollectionRepository:
             )  # Replace with custom exception if needed
         return collection
 
+    async def find_by_name(self, name: str) -> Collection | None:
+        query = select(Collection).where(Collection.name == name)
+        result = await self.db_session.execute(query)
+        collection = result.scalar_one_or_none()
+        if collection is None:
+            raise ModelNotFound("Collection not found")
+        return collection
+
     async def all(self) -> list[Collection]:
         result = await self.db_session.execute(
             select(Collection).order_by(Collection.created_at.desc())
