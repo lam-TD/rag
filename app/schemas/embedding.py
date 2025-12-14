@@ -3,7 +3,7 @@ import uuid
 from pydantic import BaseModel, Field
 
 
-class EmbeddingItemReponse(BaseModel):
+class EmbeddingItem(BaseModel):
     id: uuid.UUID
     document_id: uuid.UUID
     collection_id: uuid.UUID

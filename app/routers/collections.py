@@ -13,7 +13,7 @@ from app.schemas.collection import (
     CollectionCreateRequest,
     CollectionItemReponse,
 )
-from app.schemas.embedding import EmbeddingItemReponse
+from app.schemas.embedding import EmbeddingItem
 from app.services.db.pgvector import get_db_session
 from app.services.dependencies import get_collection_service
 from app.services.collection_service import CollectionService
@@ -98,7 +98,7 @@ async def chat(
         context = []
         for chunk, distance in embed_result:
             setattr(chunk, "similarity", 1 - distance)
-            context.append(EmbeddingItemReponse.model_validate(chunk))
+            context.append(EmbeddingItem.model_validate(chunk))
 
     except ModelNotFound:
         raise HTTPException(
