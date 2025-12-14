@@ -2,6 +2,7 @@ from sqlalchemy import select
 from typing_extensions import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from google import genai
 
 from app.config.env import Env, get_env
 from app.models.embedding import Embedding
@@ -14,6 +15,7 @@ from app.schemas.collection import (
     CollectionItemReponse,
 )
 from app.schemas.embedding import EmbeddingItem
+from app.services.ask import prompt_genenrator
 from app.services.db.pgvector import get_db_session
 from app.services.dependencies import get_collection_service
 from app.services.collection_service import CollectionService
@@ -58,7 +60,7 @@ async def store(
 
 
 @router.post(
-    "{collection_id}/chat",
+    "/{collection_id}/chat",
     status_code=status.HTTP_200_OK,
     response_model=ApiResponse[CollectionChatReponse],
 )
@@ -100,6 +102,25 @@ async def chat(
             setattr(chunk, "similarity", 1 - distance)
             context.append(EmbeddingItem.model_validate(chunk))
 
+        messages, kept = prompt_genenrator.build(query=payload.question, hits=context, answer_lang="en")
+        system_msg = str(messages[0]["content"])
+        user_msg = str(messages[1]["content"])
+
+        client = genai.Client()
+        answer = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=user_msg,
+            config={
+                "temperature": 0.8,
+                "max_output_tokens": 1024,
+                "top_p": 0.8,
+                "top_k": 40,
+                "system_instruction": system_msg,
+            },
+        )
+
+        print(answer.parts[0].text)
+
     except ModelNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -114,7 +135,7 @@ async def chat(
     data = CollectionChatReponse(
         question=payload.question,
         top_k=payload.top_k,
-        answer="",
-        context=context,
+        answer=answer.parts[0].text,
+        context=kept,
     )
     return ApiResponse().ok(data=data)
