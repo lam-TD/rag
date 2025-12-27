@@ -26,7 +26,7 @@ system_prompt = """
     CITATIONS
     - Each important fact that comes from the documents should include at least one citation like [1][2][3].
     - If multiple context chunks support the same point, you can list multiple citations.
-    """  # noqa: E501
+    """
 
 
 user_prompt = """

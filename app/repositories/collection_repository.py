@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.collection import Collection
 
 
-class ModelNotFound(Exception):
+class ModelNotFoundError(Exception):
     pass
 
 
@@ -22,7 +22,9 @@ class CollectionRepository:
     async def find_or_fail(self, collection_id: str | int) -> Collection:
         collection = await self.find(collection_id)
         if collection is None:
-            raise ModelNotFound("Collection not found")  # Replace with custom exception if needed
+            raise ModelNotFoundError(
+                "Collection not found"
+            )  # Replace with custom exception if needed
         return collection
 
     async def find_by_name(self, name: str) -> Collection | None:
@@ -30,7 +32,7 @@ class CollectionRepository:
         result = await self.db_session.execute(query)
         collection = result.scalar_one_or_none()
         if collection is None:
-            raise ModelNotFound("Collection not found")
+            raise ModelNotFoundError("Collection not found")
         return collection
 
     async def all(self) -> list[Collection]:

@@ -47,14 +47,14 @@ class PGVector:
 
         engine = self.get_engine()
 
-        SessionLocal = async_sessionmaker(
+        session_local = async_sessionmaker(
             bind=engine,
             expire_on_commit=False,
             autoflush=False,
             autocommit=False,
         )
-        self._sessionmaker = SessionLocal
-        return SessionLocal
+        self._sessionmaker = session_local
+        return session_local
 
     async def dispose_all(self) -> None:
         """

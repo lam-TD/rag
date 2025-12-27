@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.env import Env, get_env
 from app.models.embedding import Embedding
-from app.repositories.collection_repository import ModelNotFound
+from app.repositories.collection_repository import ModelNotFoundError
 from app.schemas.api_response import ApiResponse
 from app.schemas.collection import (
     CollectionChatReponse,
@@ -118,7 +118,7 @@ async def chat(
 
         print(answer.parts[0].text)
 
-    except ModelNotFound:
+    except ModelNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"The {collection_id} is invalid",

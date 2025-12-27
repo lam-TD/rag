@@ -27,13 +27,37 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+exclude = [
+  ".venv",
+  "venv",
+  "dist",
+  "build",
+  "__pycache__",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".ruff_cache",
+  "migrations",        # nếu bạn không muốn lint alembic revisions
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+select = [
+  #"E",    # pycodestyle errors (PEP 8 core)
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes (unused imports, undefined names...)
+  "I",    # isort (sắp xếp import)
+  "N",    # pep8-naming (quy ước đặt tên)
+  "B",    # flake8-bugbear (bắt lỗi dễ gây bug)
+  "UP",   # pyupgrade (gợi ý cú pháp mới, hợp py3.12)
+  "SIM",  # simplifications (đơn giản hoá if/logic)
+  "RUF",  # ruff-specific rules (best practices)
+]
 ignore = [
-  "B008",  # FastAPI dùng Depends(...) trong default param
+  "B008", # FastAPI dùng Depends(...) trong default param
+  "E501", # Line too long
 ]
 
 [tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
+quote-style = "double"          # dùng "..." thay vì '...'
+indent-style = "space"          # 4 spaces
+skip-magic-trailing-comma = false
+line-ending = "auto"
