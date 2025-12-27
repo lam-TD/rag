@@ -71,6 +71,8 @@ async def chat(
 ) -> ApiResponse[CollectionChatReponse]:
     try:
         collection = await collection_service.find_by_name(collection_id)
+        if not collection:
+            raise ModelNotFoundError()
         embedding_service = JinaEmbedding(
             base_url=env.embedding_base_url,
             api_key=env.embedding_api_key,
@@ -115,8 +117,6 @@ async def chat(
                 "system_instruction": system_msg,
             },
         )
-
-        print(answer.parts[0].text)
 
     except ModelNotFoundError:
         raise HTTPException(
