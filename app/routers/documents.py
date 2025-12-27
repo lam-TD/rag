@@ -1,5 +1,6 @@
-from typing import Annotated, Any, Dict, List, Tuple
+from typing import Annotated, Any
 from uuid import uuid4
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -7,7 +8,10 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
+from google import genai
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config.env import Env, get_env
 from app.models.document import Document
 from app.models.embedding import Embedding
@@ -19,7 +23,6 @@ from app.services.db.pgvector import get_db_session
 from app.services.dependencies import get_collection_service
 from app.services.embeddings.jina_service import JinaEmbedding
 from app.services.text_extractor.tika_extractor import TikaExtractor
-from google import genai
 
 router = APIRouter(tags=["Documents"], prefix="/api/v1/collections")
 
@@ -72,7 +75,7 @@ async def upload_file(
 
         embedding_result = result
 
-        for chunk, embed in zip(chunks, embedding_result.embeddings):
+        for chunk, embed in zip(chunks, embedding_result.embeddings, strict=False):
             vector_literal = embed["embedding"]
 
             item = Embedding(
@@ -114,13 +117,11 @@ async def get_file_embeddings(
     if embedding_question is None or embedding_question.embeddings is None:
         raise HTTPException(status_code=500, detail="Embedding service error")
 
-    query = Embeddings.embedding.cosine_distance(
-        embedding_question.embeddings[0]["embedding"]
-    )
+    query = Embedding.embedding.cosine_distance(embedding_question.embeddings[0]["embedding"])
 
     try:
         result = await db_session.execute(
-            select(Embeddings, query.label("distance")).order_by(query).limit(5)
+            select(Embedding, query.label("distance")).order_by(query).limit(5)
         )
         rows = result.all()
 
@@ -140,7 +141,7 @@ async def get_file_embeddings(
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))
 
-    messages, used_hits = build_messages_for_rag(question, results)
+    messages, _ = build_messages_for_rag(question, results)
 
     system, user = to_system_and_user(messages)
 
@@ -153,6 +154,7 @@ async def get_file_embeddings(
             "max_output_tokens": 1024,
             "top_p": 0.8,
             "top_k": 40,
+            "system_instruction": system,
         },
     )
 
@@ -162,7 +164,7 @@ async def get_file_embeddings(
     }
 
 
-def to_system_and_user(messages: List[Dict[str, str]]) -> Tuple[str, str]:
+def to_system_and_user(messages: list[dict[str, str]]) -> tuple[str, str]:
     system = ""
     user_parts = []
     for m in messages:

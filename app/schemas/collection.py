@@ -1,7 +1,9 @@
 from __future__ import annotations
+
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
+
 from pydantic import BaseModel, Field
 
 
@@ -27,6 +29,7 @@ class CollectionCreateRequest(BaseModel):
         "extra": "forbid",
         "from_attributes": True,
     }
+
 
 class CollectionChatRequet(BaseModel):
     question: str = Field(max_length=1000)

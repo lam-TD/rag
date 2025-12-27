@@ -1,11 +1,13 @@
-from typing import AsyncGenerator
-from app.config.database import DatabaseConfig, get_db_config
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
-    async_sessionmaker,
     AsyncSession,
+    async_sessionmaker,
     create_async_engine,
 )
+
+from app.config.database import DatabaseConfig, get_db_config
 
 
 class PGVector:

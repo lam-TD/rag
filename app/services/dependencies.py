@@ -1,8 +1,10 @@
 from typing import Annotated
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from fastapi import Depends
-from app.services.collection_service import CollectionService
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.repositories.collection_repository import CollectionRepository
+from app.services.collection_service import CollectionService
 from app.services.db.pgvector import get_db_session
 
 DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]

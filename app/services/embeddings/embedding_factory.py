@@ -6,13 +6,13 @@ from app.services.jina_embedding_service import (
     JinaEmbeddingClientConfig,
     JinaEmbeddingService,
 )
-from app.services.openai_embedding_service import (
-    OpenAIEmbeddingClientConfig,
-    OpenAIEmbeddingService,
-)
 from app.services.local_embedding_service import (
     LocalEmbeddingClientConfig,
     LocalEmbeddingService,
+)
+from app.services.openai_embedding_service import (
+    OpenAIEmbeddingClientConfig,
+    OpenAIEmbeddingService,
 )
 
 
@@ -27,9 +27,7 @@ class EmbeddingServiceFactory:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def create(
-        self, provider: EmbeddingProviderName | None = None
-    ) -> EmbeddingServiceProtocol:
+    def create(self, provider: EmbeddingProviderName | None = None) -> EmbeddingServiceProtocol:
         provider_name = provider or self._settings.embedding_provider
 
         if provider_name == "jina":

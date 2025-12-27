@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from pydantic import BaseModel
 
 from app.schemas.rag import EmbeddingItem, EmbeddingResponse, EmbeddingUsage
-from app.services.embedding_protocols import EmbeddingServiceProtocol
 
 
 class LocalEmbeddingClientConfig(BaseModel):
@@ -15,7 +14,7 @@ class LocalEmbeddingClientConfig(BaseModel):
     timeout_seconds: float = 30.0
 
 
-class LocalEmbeddingService(EmbeddingServiceProtocol):
+class LocalEmbeddingService:
     """EmbeddingService cho server local (tự build hoặc open-source)."""
 
     def __init__(self, config: LocalEmbeddingClientConfig) -> None:
@@ -26,7 +25,7 @@ class LocalEmbeddingService(EmbeddingServiceProtocol):
         texts: list[str],
         model: str,
         *,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         encoding_format: str = "float",
     ) -> EmbeddingResponse:
         # Tùy bạn định nghĩa API local, đây là ví dụ generic

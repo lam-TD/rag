@@ -1,6 +1,5 @@
-# timing.py
-import time
 import logging
+import time
 from contextlib import contextmanager
 
 log = logging.getLogger("ingest")

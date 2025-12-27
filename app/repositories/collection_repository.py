@@ -22,9 +22,7 @@ class CollectionRepository:
     async def find_or_fail(self, collection_id: str | int) -> Collection:
         collection = await self.find(collection_id)
         if collection is None:
-            raise ModelNotFound(
-                "Collection not found"
-            )  # Replace with custom exception if needed
+            raise ModelNotFound("Collection not found")  # Replace with custom exception if needed
         return collection
 
     async def find_by_name(self, name: str) -> Collection | None:
@@ -49,9 +47,6 @@ class CollectionRepository:
 
     async def paginate(self, offset: int = 0, limit: int = 10) -> list[Collection]:
         result = await self.db_session.execute(
-            select(Collection)
-            .order_by(Collection.created_at.desc())
-            .offset(offset)
-            .limit(limit)
+            select(Collection).order_by(Collection.created_at.desc()).offset(offset).limit(limit)
         )
         return list(result.scalars().all())

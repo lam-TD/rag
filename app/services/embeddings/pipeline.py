@@ -3,22 +3,22 @@ from __future__ import annotations
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from .providers import EmbeddingProvider
 from .types import ChunkDict, Repository
 
-
 __all__ = [
-    "retry",
-    "ratelimit",
-    "Step",
-    "CleanStep",
     "ChunkStep",
+    "CleanStep",
     "DedupStep",
     "EmbedStep",
-    "StoreStep",
     "Pipeline",
+    "Step",
+    "StoreStep",
+    "ratelimit",
+    "retry",
 ]
 
 
@@ -40,7 +40,7 @@ def retry(
             for i in range(max_attempts):
                 try:
                     return fn(*args, **kwargs)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     last_exc = exc
                     time.sleep(backoff * (2.0**i))
             assert last_exc is not None
@@ -179,7 +179,7 @@ class EmbedStep(Step):
             batch_texts = texts[i : i + self._batch]
             vecs = self._call(batch_texts, task=self._task, dim=self._dim)
             all_vecs.extend(vecs)
-        for c, v in zip(chunks, all_vecs):
+        for c, v in zip(chunks, all_vecs, strict=False):
             c["embedding"] = v
         ctx["chunks"] = chunks
         return ctx

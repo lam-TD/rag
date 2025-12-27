@@ -1,10 +1,10 @@
 from typing import Annotated
+
 from fastapi import Depends, FastAPI
 
 from app.config.database import DatabaseConfig, get_db_config
-
-from app.routers import documents, collections
 from app.config.env import Env, get_env
+from app.routers import collections, documents
 
 env = get_env()
 

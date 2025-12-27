@@ -1,6 +1,7 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from app.services.chunking.interface import TextChunker
 
 
@@ -15,9 +16,7 @@ class SimpleChunker(TextChunker):
     Phù hợp cho MVP RAG (Tika -> chunk -> embedding).
     """
 
-    def __init__(
-        self, default_max_chars: int = 1200, default_overlap_chars: int = 200
-    ) -> None:
+    def __init__(self, default_max_chars: int = 1200, default_overlap_chars: int = 200) -> None:
         self.default_max_chars = default_max_chars
         self.default_overlap_chars = default_overlap_chars
 
@@ -26,15 +25,13 @@ class SimpleChunker(TextChunker):
         text: str,
         max_chars: int | None = None,
         overlap_chars: int | None = None,
-        base_metadata: Dict[str, Any] | None = None,
-    ) -> List[str]:
+        base_metadata: dict[str, Any] | None = None,
+    ) -> list[str]:
         if not text or not text.strip():
             return []
 
         max_chars = max_chars or self.default_max_chars
-        overlap_chars = (
-            overlap_chars if overlap_chars is not None else self.default_overlap_chars
-        )
+        overlap_chars = overlap_chars if overlap_chars is not None else self.default_overlap_chars
 
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=max_chars, chunk_overlap=overlap_chars
@@ -42,10 +39,9 @@ class SimpleChunker(TextChunker):
 
         texts = text_splitter.split_text(text)
 
-        idx = 0
-        chunks: List[str] = []
+        chunks: list[str] = []
 
-        for value in texts:
+        for idx, value in enumerate(texts):
             idx += 1
             chunks.append(value)
 

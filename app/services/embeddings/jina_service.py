@@ -1,12 +1,11 @@
-from typing import Optional
 from httpx import AsyncClient
 
 
 class EmbeddingResult:
     def __init__(
         self,
-        total_tokens: Optional[int] = None,
-        embeddings: Optional[list] = None,
+        total_tokens: int | None = None,
+        embeddings: list | None = None,
     ) -> None:
         self.total_tokens = total_tokens
         self.embeddings = embeddings
@@ -28,7 +27,7 @@ class JinaEmbedding:
             timeout=timeout,
         )
 
-    async def embed_texts(self, text, *, model: Optional[str] = None):
+    async def embed_texts(self, text, *, model: str | None = None):
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
@@ -42,9 +41,7 @@ class JinaEmbedding:
         }
 
         try:
-            response = await self._client.post(
-                "/v1/embeddings", json=payload, headers=headers
-            )
+            response = await self._client.post("/v1/embeddings", json=payload, headers=headers)
             response.raise_for_status()
             result = response.json()
 

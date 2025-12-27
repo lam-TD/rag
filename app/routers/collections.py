@@ -1,8 +1,9 @@
-from sqlalchemy import select
-from typing_extensions import Annotated
+from typing import Annotated
+
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from google import genai
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.env import Env, get_env
 from app.models.embedding import Embedding
@@ -16,11 +17,10 @@ from app.schemas.collection import (
 )
 from app.schemas.embedding import EmbeddingItem
 from app.services.ask import prompt_genenrator
+from app.services.collection_service import CollectionService
 from app.services.db.pgvector import get_db_session
 from app.services.dependencies import get_collection_service
-from app.services.collection_service import CollectionService
 from app.services.embeddings.jina_service import JinaEmbedding
-
 
 router = APIRouter(tags=["Collections"], prefix="/api/v1/collections")
 
@@ -34,9 +34,7 @@ async def index(
     collection_service: Annotated[CollectionService, Depends(get_collection_service)],
 ) -> ApiResponse[list[CollectionItemReponse]]:
     collections = await collection_service.paginate()
-    data = [
-        CollectionItemReponse.model_validate(collection) for collection in collections
-    ]
+    data = [CollectionItemReponse.model_validate(collection) for collection in collections]
 
     return ApiResponse().ok(
         data=data,
@@ -71,7 +69,6 @@ async def chat(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     collection_id: str = "default",
 ) -> ApiResponse[CollectionChatReponse]:
-
     try:
         collection = await collection_service.find_by_name(collection_id)
         embedding_service = JinaEmbedding(
@@ -85,9 +82,7 @@ async def chat(
         if embed_question is None or embed_question.embeddings is None:
             raise HTTPException(status_code=500, detail="Embedding service error")
 
-        embed_query = Embedding.embedding.cosine_distance(
-            embed_question.embeddings[0]["embedding"]
-        )
+        embed_query = Embedding.embedding.cosine_distance(embed_question.embeddings[0]["embedding"])
         embed_select = (
             select(Embedding, embed_query.label("distance"))
             .where(Embedding.collection_id == collection.id)
@@ -99,10 +94,12 @@ async def chat(
         embed_result = embed_result.all()
         context = []
         for chunk, distance in embed_result:
-            setattr(chunk, "similarity", 1 - distance)
+            chunk.similarity = 1 - distance
             context.append(EmbeddingItem.model_validate(chunk))
 
-        messages, kept = prompt_genenrator.build(query=payload.question, hits=context, answer_lang="en")
+        messages, kept = prompt_genenrator.build(
+            query=payload.question, hits=context, answer_lang="en"
+        )
         system_msg = str(messages[0]["content"])
         user_msg = str(messages[1]["content"])
 
@@ -125,12 +122,12 @@ async def chat(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"The {collection_id} is invalid",
-        )
+        ) from None
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
-        )
+        ) from None
 
     data = CollectionChatReponse(
         question=payload.question,

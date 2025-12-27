@@ -14,7 +14,7 @@ class CollectionService:
         # uuid validation can be handled here if needed
 
         return await self.repository.find_or_fail(collection_id)
-    
+
     async def find_by_name(self, name: str) -> Collection | None:
         return await self.repository.find_by_name(name)
 

@@ -53,7 +53,7 @@ def build_messages_for_rag(
 
 
 def user_prompt():
-    """
+    return """
     You will answer a question based ONLY on the CONTEXT below.
 
     [QUESTION - ORIGINAL]
@@ -91,7 +91,7 @@ def user_prompt():
 
 
 def build_messages_for_rag_with_multiple_langues():
-    system_prompt = """
+    return """
     You are a helpful, precise, multilingual AI assistant for a Retrieval-Augmented Generation (RAG) system.
 
     You can understand and answer in multiple languages, especially Vietnamese, English, and Japanese.
@@ -117,4 +117,4 @@ def build_messages_for_rag_with_multiple_langues():
     CITATIONS
     - Each important fact that comes from the documents should include at least one citation like [1][2][3].
     - If multiple context chunks support the same point, you can list multiple citations.
-    """
+    """  # noqa: E501

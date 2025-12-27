@@ -1,6 +1,4 @@
-from typing import Any
 from app.schemas.embedding import EmbeddingItem
-
 
 system_prompt = """
     You are a helpful, precise, multilingual AI assistant for a Retrieval-Augmented Generation (RAG) system.
@@ -28,7 +26,7 @@ system_prompt = """
     CITATIONS
     - Each important fact that comes from the documents should include at least one citation like [1][2][3].
     - If multiple context chunks support the same point, you can list multiple citations.
-    """
+    """  # noqa: E501
 
 
 user_prompt = """
@@ -64,7 +62,6 @@ user_prompt = """
 def _build_context_blocks(
     hits: list[EmbeddingItem], max_chars: int
 ) -> tuple[str, list[EmbeddingItem]]:
-
     # 2) khử trùng lặp thô theo text
     seen, kept, total = set(), [], 0
     for h in hits:

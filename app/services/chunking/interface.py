@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -16,7 +17,7 @@ class TextChunk:
 
     index: int
     content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class TextChunker(ABC):
@@ -32,10 +33,10 @@ class TextChunker(ABC):
     def chunk(
         self,
         text: str,
-        max_chars: Optional[int] = None,
-        overlap_chars: Optional[int] = None,
-        base_metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[str]:
+        max_chars: int | None = None,
+        overlap_chars: int | None = None,
+        base_metadata: dict[str, Any] | None = None,
+    ) -> list[str]:
         """
         Chia text thành nhiều chunk.
 

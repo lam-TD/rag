@@ -1,6 +1,7 @@
-from typing import Any
 import uuid
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel
 
 
 class EmbeddingItem(BaseModel):

@@ -8,9 +8,7 @@ class TikaExtractor:
     async def extract(self, file_bytes: bytes) -> str:
         headers = {"Accept": "text/plain"}
 
-        response = await self._client.put(
-            url="/tika", content=file_bytes, headers=headers
-        )
+        response = await self._client.put(url="/tika", content=file_bytes, headers=headers)
         response.raise_for_status()
 
         text = response.text

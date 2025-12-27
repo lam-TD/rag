@@ -1,9 +1,12 @@
-from typing import Any
 import uuid
-from sqlalchemy import JSON, UUID as SQLUUID, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
-from app.services.db.base_model import BaseModel
+from typing import Any
+
 from pgvector.sqlalchemy import Vector
+from sqlalchemy import JSON, ForeignKey
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.services.db.base_model import BaseModel
 
 
 class Embedding(BaseModel):

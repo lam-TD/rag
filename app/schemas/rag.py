@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import Form, HTTPException
 from pydantic import BaseModel, Field
-
 
 DEFAULT_COLLECTION_NAME = "default"
 DEFAULT_EMBEDDING_MODEL = "jina-embeddings-v3"
 
 
 class EmbeddingRequest(BaseModel):
-    model: Optional[str] = Field(
+    model: str | None = Field(
         DEFAULT_EMBEDDING_MODEL,
         description="Embedding model name, e.g. 'jina-embeddings-v3'",
         examples=[DEFAULT_EMBEDDING_MODEL],
@@ -25,8 +24,8 @@ class EmbeddingRequest(BaseModel):
     @classmethod
     def as_form(
         cls,
-        model: Optional[str] = Form(DEFAULT_EMBEDDING_MODEL),
-        metadata: Optional[str] = Form(
+        model: str | None = Form(DEFAULT_EMBEDDING_MODEL),
+        metadata: str | None = Form(
             "{}",
             description="Metadata dạng JSON (key/value) gắn kèm cho toàn bộ batch",
         ),
@@ -41,26 +40,26 @@ class EmbeddingRequest(BaseModel):
                 raise HTTPException(
                     status_code=422,
                     detail="metadata must be a valid JSON object",
-                )
+                ) from None
 
         return cls(model=model, metadata=parsed_metadata)
 
 
 class EmbeddingItem(BaseModel):
     index: int
-    embedding_id: Optional[str] = None
-    embedding: Optional[list[float]] = None
+    embedding_id: str | None = None
+    embedding: list[float] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class EmbeddingUsage(BaseModel):
-    prompt_tokens: Optional[int] = None
-    total_tokens: Optional[int] = None
+    prompt_tokens: int | None = None
+    total_tokens: int | None = None
 
 
 class EmbeddingResponse(BaseModel):
     model: str
     dimension: int
     data: list[EmbeddingItem]
-    usage: Optional[EmbeddingUsage] = None
-    trace_id: Optional[str] = None
+    usage: EmbeddingUsage | None = None
+    trace_id: str | None = None
