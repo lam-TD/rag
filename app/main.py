@@ -1,22 +1,47 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
 
-from app.config.database import DatabaseConfig, get_db_config
 from app.config.env import Env, get_env
-from app.routers import collections, documents
 
-env = get_env()
 
-app = FastAPI(title=env.app_name)
+def fake_answer_to_everything_ml_model(x: float):
+    return x * 42
 
-app.include_router(documents.router)
-app.include_router(collections.router)
+
+ml_models = {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    env = get_env()
+    app.state.env = env
+    if env.app_name:
+        app.title = env.app_name
+    ml_models["answer_to_everything"] = fake_answer_to_everything_ml_model
+
+    yield
+
+    ml_models.clear()
+
+
+async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):
+    return {"q": q, "skip": skip, "limit": limit}
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
 def read_root(
     settings: Annotated[Env, Depends(get_env)],
-    db_config: Annotated[DatabaseConfig, Depends(get_db_config)],
 ):
-    return {"settings": settings, "db_config": db_config}
+    return {"settings": app.state.env}
+
+
+@app.get("/test")
+def test(
+    commons: Annotated[dict, Depends(common_parameters)],
+):
+    return {"commons": commons}

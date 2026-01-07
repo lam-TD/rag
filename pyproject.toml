@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.30.0",
+    "coverage>=7.13.1",
     "fastapi[standard]>=0.117.1",
     "google-genai>=1.52.0",
     "langchain>=0.3.27",
@@ -14,11 +15,14 @@ dependencies = [
     "pgvector[psycopg]>=0.4.1",
     "psycopg2-binary>=2.9.10",
     "psycopg[async,binary]>=3.2.13",
+    "pytest-cov>=7.0.0",
+    "schemathesis>=4.8.0",
     "sqlalchemy[asyncio]>=2.0.43",
 ]
 
 [dependency-groups]
 dev = [
+    "coverage>=7.13.1",
     "pyright>=1.1.407",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
@@ -62,3 +66,25 @@ quote-style = "double"          # dùng "..." thay vì '...'
 indent-style = "space"          # 4 spaces
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = [
+  "*/tests/*",
+  "*/migrations/*",
+  "*/alembic/*",
+  "*/__init__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
+[tool.coverage.html]
+directory = "coverage_html_report"
