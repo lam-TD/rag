@@ -52,6 +52,8 @@ async def store(
     payload: Annotated[CollectionCreateRequest, Body(...)],
     collection_service: Annotated[CollectionService, Depends(get_collection_service)],
 ) -> ApiResponse[CollectionItemReponse]:
+
+    print(payload)
     collection = await collection_service.create(payload)
 
     return ApiResponse().ok(
@@ -59,83 +61,83 @@ async def store(
     )
 
 
-@router.post(
-    "/{collection_id}/chat",
-    status_code=status.HTTP_200_OK,
-    response_model=ApiResponse[CollectionChatReponse],
-)
-async def chat(
-    env: Annotated[Env, Depends(get_env)],
-    payload: Annotated[CollectionChatRequet, Body(...)],
-    collection_service: Annotated[CollectionService, Depends(get_collection_service)],
-    db_session: Annotated[AsyncSession, Depends(get_db_session)],
-    collection_id: str = "default",
-) -> ApiResponse[CollectionChatReponse]:
+# @router.post(
+#     "/{collection_id}/chat",
+#     status_code=status.HTTP_200_OK,
+#     response_model=ApiResponse[CollectionChatReponse],
+# )
+# async def chat(
+#     env: Annotated[Env, Depends(get_env)],
+#     payload: Annotated[CollectionChatRequet, Body(...)],
+#     collection_service: Annotated[CollectionService, Depends(get_collection_service)],
+#     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+#     collection_id: str = "default",
+# ) -> ApiResponse[CollectionChatReponse]:
 
-    try:
-        collection = await collection_service.find_by_name(collection_id)
-        embedding_service = JinaEmbedding(
-            base_url=env.embedding_base_url,
-            api_key=env.embedding_api_key,
-            default_model=env.embedding_default_model,
-        )
+#     try:
+#         collection = await collection_service.find_by_name(collection_id)
+#         embedding_service = JinaEmbedding(
+#             base_url=env.embedding_base_url,
+#             api_key=env.embedding_api_key,
+#             default_model=env.embedding_default_model,
+#         )
 
-        embed_question = await embedding_service.embed_texts(text=[payload.question])
+#         embed_question = await embedding_service.embed_texts(text=[payload.question])
 
-        if embed_question is None or embed_question.embeddings is None:
-            raise HTTPException(status_code=500, detail="Embedding service error")
+#         if embed_question is None or embed_question.embeddings is None:
+#             raise HTTPException(status_code=500, detail="Embedding service error")
 
-        embed_query = Embedding.embedding.cosine_distance(
-            embed_question.embeddings[0]["embedding"]
-        )
-        embed_select = (
-            select(Embedding, embed_query.label("distance"))
-            .where(Embedding.collection_id == collection.id)
-            .order_by(embed_query)
-            .limit(5)
-        )
+#         embed_query = Embedding.embedding.cosine_distance(
+#             embed_question.embeddings[0]["embedding"]
+#         )
+#         embed_select = (
+#             select(Embedding, embed_query.label("distance"))
+#             .where(Embedding.collection_id == collection.id)
+#             .order_by(embed_query)
+#             .limit(5)
+#         )
 
-        embed_result = await db_session.execute(embed_select)
-        embed_result = embed_result.all()
-        context = []
-        for chunk, distance in embed_result:
-            setattr(chunk, "similarity", 1 - distance)
-            context.append(EmbeddingItem.model_validate(chunk))
+#         embed_result = await db_session.execute(embed_select)
+#         embed_result = embed_result.all()
+#         context = []
+#         for chunk, distance in embed_result:
+#             setattr(chunk, "similarity", 1 - distance)
+#             context.append(EmbeddingItem.model_validate(chunk))
 
-        messages, kept = prompt_genenrator.build(query=payload.question, hits=context, answer_lang="en")
-        system_msg = str(messages[0]["content"])
-        user_msg = str(messages[1]["content"])
+#         messages, kept = prompt_genenrator.build(query=payload.question, hits=context, answer_lang="en")
+#         system_msg = str(messages[0]["content"])
+#         user_msg = str(messages[1]["content"])
 
-        client = genai.Client()
-        answer = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=user_msg,
-            config={
-                "temperature": 0.8,
-                "max_output_tokens": 1024,
-                "top_p": 0.8,
-                "top_k": 40,
-                "system_instruction": system_msg,
-            },
-        )
+#         client = genai.Client()
+#         answer = client.models.generate_content(
+#             model="gemini-2.5-flash",
+#             contents=user_msg,
+#             config={
+#                 "temperature": 0.8,
+#                 "max_output_tokens": 1024,
+#                 "top_p": 0.8,
+#                 "top_k": 40,
+#                 "system_instruction": system_msg,
+#             },
+#         )
 
-        print(answer.parts[0].text)
+#         print(answer.parts[0].text)
 
-    except ModelNotFound:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"The {collection_id} is invalid",
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        )
+#     except ModelNotFound:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail=f"The {collection_id} is invalid",
+#         )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=str(e),
+#         )
 
-    data = CollectionChatReponse(
-        question=payload.question,
-        top_k=payload.top_k,
-        answer=answer.parts[0].text,
-        context=kept,
-    )
-    return ApiResponse().ok(data=data)
+#     data = CollectionChatReponse(
+#         question=payload.question,
+#         top_k=payload.top_k,
+#         answer=answer.parts[0].text,
+#         context=kept,
+#     )
+#     return ApiResponse().ok(data=data)

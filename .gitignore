@@ -11,3 +11,5 @@ uploads/
 .env.prod
   
 ./storage/pgdata
+
+.hypothesis

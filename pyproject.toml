@@ -23,5 +23,13 @@ dev = [
     "pytest-asyncio>=1.2.0",
     "ruff>=0.13.2",
     "schemathesis>=4.8.0",
-    "pytest-cov==7.0.0"
+    "pytest-cov==7.0.0",
+    "flake8-pytest-style>=2.2.0",
 ]
+
+[pytest]
+testpaths = ["tests"]
+strict_config = true
+strict_markers = true
+strict_parametrization_ids = true
+strict_xfail = true

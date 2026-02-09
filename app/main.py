@@ -10,7 +10,7 @@ env = get_env()
 
 app = FastAPI(title=env.app_name)
 
-app.include_router(documents.router)
+# app.include_router(documents.router)
 app.include_router(collections.router)
 
 
