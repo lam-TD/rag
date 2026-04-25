@@ -353,9 +353,245 @@ vendor/bin/php-cs-fixer fix
 
 #### a. Tại sao cần làm nhỏ class?
 
-Cũng giống như function, một class nên được thiết kế nhỏ gọn.
-Nhưng với function có thể xác định kích thước lớn nhỏ bằng cách đếm số dòng.
+Nếu một class có quá nhiều trách nhiệm, quá nhiều method, nó sẽ trở nên khó hiểu, khó sửa, và khó test.
+Lúc này nó sẽ được gọi là “God Class”.
+
+Một God Class thường gây ra các vấn đề sau:
+
+| Vấn đề                   | Hậu quả                                         |
+| ------------------------ | ----------------------------------------------- |
+| Quá nhiều trách nhiệm    | Khó hiểu class thật sự làm gì                   |
+| Quá nhiều method         | Dev khó tìm đúng nơi cần sửa                    |
+| Quá nhiều dependency     | Constructor phình to, khó test                  |
+| Nhiều nơi cùng phụ thuộc | Sửa một chỗ dễ ảnh hưởng dây chuyền             |
+| Khó viết unit test       | Test phải setup quá nhiều dependency            |
+| Khó review code          | Reviewer khó đánh giá thay đổi có an toàn không |
+| Dễ phát sinh conflict    | Nhiều dev cùng sửa một file                     |
+
+Dấu hiệu của một God Class:
+
+- Class có hơn 20 method
+- Làm nhiều việc khác nhau (ví dụ: xử lý business logic, tương tác database, gửi email, v.v.)
+- Thông qua các tên class. Một số tên gọi God Class phổ biến: `OrderService`, `CommonProcessor`, `UserManager`, v.v.
+
+Chính vì vậy, việc giữ cho class nhỏ gọn là rất quan trọng để đảm bảo code dễ hiểu, dễ sửa, và dễ test.
+
+Không giống như function có thể xác định kích thước lớn/nhỏ bằng cách đếm số dòng.
 Với class thì cần áp dụng một cách đếm khác, đó làm đếm *trách nhiệm*.
+
+Ví dụ:
+Bad
+
+```php
+namespace App\Services;
+
+use App\Models\Order;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+
+class OrderService
+{
+    public function createOrder(array $data): Order
+    {
+        // Create order
+    }
+
+    public function cancelOrder(int $orderId): void
+    {
+        // Cancel order
+    }
+
+    public function calculateTotal(Order $order): float
+    {
+        // Calculate total
+    }
+
+    public function applyDiscount(Order $order): float
+    {
+        // Apply discount
+    }
+
+    public function reserveInventory(Order $order): void
+    {
+        // Reserve inventory
+    }
+
+    public function releaseInventory(Order $order): void
+    {
+        // Release inventory
+    }
+
+    // ... imagine 50+ more methods here
+}
+
+```
+
+#### b. Nguyên tắc Single Responsibility Principle (SRP)
+
+Nguyên tắc SRP là trạng thái mà một class hoặc module nên một, chỉ một lý do để thay đổi.
+
+Điều này không có nghĩa là một class chỉ được có một method. Một class có thể có nhiều method, nhưng các method đó nên cùng phục vụ một trách nhiệm chính.
+
+Nói cách khác, khi requirement thay đổi, class đó chỉ nên bị ảnh hưởng bởi **một nhóm lý do cùng bản chất**.
+
+Ví dụ
+
+```php
+namespace App\Services;
+
+use App\Models\Order;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+
+class OrderManager
+{
+    public function createOrder(array $data): Order
+    {
+        // Validate data
+        // Create order
+        // Calculate total
+        // Reserve inventory
+        // Charge payment
+        // Send confirmation email
+        // Generate invoice PDF
+        // Store invoice file
+    }
+
+    public function cancelOrder(int $orderId): void
+    {
+        // Cancel order
+        // Release inventory
+        // Refund payment
+        // Send cancellation email
+        // Write audit log
+    }
+
+    public function exportOrdersToCsv(): string
+    {
+        // Export orders
+    }
+
+    public function getOrderStatistics(): array
+    {
+        // Return report data
+    }
+}
+```
+
+Class này có nhiều lý do để thay đổi:
+
+| Lý do thay đổi                  |           Nên thuộc class riêng không? |
+| ------------------------------- | -------------------------------------: |
+| Quy trình tạo order thay đổi    |          Có thể là `CreateOrderAction` |
+| Quy tắc tính tổng tiền thay đổi |                 `OrderTotalCalculator` |
+| Logic tồn kho thay đổi          |          `InventoryReservationService` |
+| Cổng thanh toán thay đổi        | `PaymentService` hoặc `PaymentGateway` |
+| Template email thay đổi         |                     `OrderEmailSender` |
+| Logic export CSV thay đổi       |                     `OrderCsvExporter` |
+| Logic thống kê thay đổi         |               `OrderStatisticsService` |
+
+Class sau khi refactor lần 1
+
+```php
+namespace App\Services;
+class OrderService
+{
+    public function createOrder(array $data): Order
+    {
+        // Validate data
+        // Create order
+        // Calculate total
+        // Reserve inventory
+        // Charge payment
+        // Send confirmation email
+        // Generate invoice PDF
+        // Store invoice file
+    }
+
+    public function cancelOrder(int $orderId): void
+    {
+        // Cancel order
+        // Release inventory
+        // Refund payment
+        // Send cancellation email
+        // Write audit log
+    }
+}
+```
+
+Nếu logic của `createOrder` và `cancelOrder` vẫn còn phức tạp, có thể tiếp tục refactor bằng cách tách các phần logic ra thành các class riêng biệt, ví dụ:
+
+```php
+namespace App\Actions\Orders;
+
+class CreateOrderAction
+{
+    public function __construct(
+        private OrderTotalCalculator $totalCalculator,
+        private InventoryReservationService $inventoryReservationService,
+        private PaymentService $paymentService,
+    ) {}
+
+    public function execute(array $data): Order
+    {
+        $order = Order::create($data);
+
+        $order->total = $this->totalCalculator->calculate($order);
+        $order->save();
+
+        $this->inventoryReservationService->reserve($order);
+        $this->paymentService->charge($order);
+
+        return $order;
+    }
+}
+```
+
+Cách này vẫn chưa tối ưu vì trong `execute` phụ thuộc trực tiếp vào Order. Khó test vì phải tạo một Order thật sự để test.
+
+```php
+class CreateOrderAction
+{
+    public function __construct(
+        private OrderTotalCalculator $totalCalculator,
+        private InventoryReservationService $inventoryReservationService,
+        private PaymentService $paymentService,
+        private Order $order,
+    ) {}
+
+    public function execute(array $data): Order
+    {
+        $order = $this->order->newInstance()->create($data);
+
+        $order->total = $this->totalCalculator->calculate($order);
+        $order->save();
+
+        $this->inventoryReservationService->reserve($order);
+        $this->paymentService->charge($order);
+
+        return $order;
+    }
+}
+```
+
+
+SRP review checklist:
+
+- Class này có thể được mô tả trong khoảng 25 từ không?
+- Mô tả đó có phải dùng nhiều từ như `if`, `and`, `or`, `but` không?
+- Tên class có cụ thể không?
+- Class có đang dùng tên mơ hồ như `Manager`, `Processor`, `Helper`, `Common` không?
+- Class này có bao nhiêu lý do để thay đổi?
+- Các method trong class có cùng phục vụ một trách nhiệm chính không?
+- Nếu tách class, tên các class mới có rõ nghĩa hơn không?
+
+#### c. Mối liên kết
+
+#### d. Thiết lập kết quả liên kết trong nhiều lớp nhỏ
+
+#### e. Tổ chức cho sự thay đổi
+
+#### f. Tách biệt sự thay đổi
 
 ## 2. Câu hỏi thảo luận
 
@@ -364,4 +600,3 @@ Với class thì cần áp dụng một cách đếm khác, đó làm đếm *tr
 ### 3.1. Tóm tắt nội dung đã thống nhất
 
 ### 3.2 Conding Conventions của chương 10
-
