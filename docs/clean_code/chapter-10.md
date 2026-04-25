@@ -119,7 +119,7 @@ class DocumentUploadService
 
 **Không nên đổi `private` thành `protected` chỉ để unit test dễ hơn.**
 
-Giả sử hệ thống cần test DocumentUploadService, để có thể test được `validateFile` và `buildStoragePath` team đã đổi chúng thành `protected` để có thể tạo một class con trong test và gọi được các method này. Đây là một sai lầm phổ biến.
+Giả sử hệ thống cần test DocumentUploadService, để có thể test được `validateFile` team đã đổi chúng thành `protected` để có thể tạo một class con trong test và gọi được các method này. Đây là một sai lầm phổ biến.
 
 ```php
 class DocumentUploadService
@@ -163,8 +163,67 @@ it('rejects unsupported file type', function () {
 });
 ```
 
+**Khi nào có thể tách private method thành class riêng?**
 
+Nguyên tắc: Nếu một private method trở nên phức tạp, có nhiều rule, hoặc cần test độc lập, thay vì đổi nó thành protected, nên cân nhắc tách nó thành một class riêng.
 
+Ví dụ, nếu `validateFile` trở nên phức tạp với nhiều rule, có thể tách nó thành một class mới:
+
+```php
+class DocumentFileValidator
+{
+    public function validate(UploadedFile $file): void
+    {
+        if (! in_array($file->extension(), ['pdf', 'docx', 'txt'], true)) {
+            throw new \InvalidArgumentException('Unsupported file type.');
+        }
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            throw new \InvalidArgumentException('File size must not exceed 10MB.');
+        }
+    }
+}
+```
+
+Sau đó `DocumentUploadService` sẽ sử dụng `FileValidator`:
+
+```php
+class DocumentUploadService
+{
+    private DocumentFileValidator $validator;
+
+    public __construct(DocumentFileValidator $fileValidator)
+    {
+        $this->validator = $fileValidator;
+    }
+
+    public function upload(UploadedFile $file): string
+    {
+        $this->validator->validate($file);
+
+        // upload logic
+    }
+}
+```
+
+Lúc này `DocumentFileValidator` có thể được test độc lập thông qua method public là `validate`. Đây là một cách tiếp cận tốt hơn so với việc đổi private method thành protected chỉ để test.
+
+```php
+it('file correctly', function () {
+    $validator = new DocumentFileValidator();
+
+    $validFile = $file = UploadedFile::fake()->create('malware.exe', 100);
+    expect(fn () => $validator->validate($validFile))->not()->toThrow();
+});
+
+it('rejects unsupported file type', function () {
+    $validator = new DocumentFileValidator();
+
+    $invalidFile = UploadedFile::fake()->create('malware.exe', 100);
+
+    expect(fn () => $validator->validate($invalidFile))
+        ->toThrow(InvalidArgumentException::class, 'Unsupported file type.');
+});
+```
 
 #### b. Nguyên tắc tổ chức
 
@@ -290,7 +349,6 @@ Run PHP CS Fixer
 vendor/bin/php-cs-fixer fix
 ```
 
-
 ### 1.2 Các lớp nên được làm nhỏ
 
 #### a. Tại sao cần làm nhỏ class?
@@ -299,5 +357,11 @@ Cũng giống như function, một class nên được thiết kế nhỏ gọn.
 Nhưng với function có thể xác định kích thước lớn nhỏ bằng cách đếm số dòng.
 Với class thì cần áp dụng một cách đếm khác, đó làm đếm *trách nhiệm*.
 
-
 ## 2. Câu hỏi thảo luận
+
+## 3. Kết luận
+
+### 3.1. Tóm tắt nội dung đã thống nhất
+
+### 3.2 Conding Conventions của chương 10
+
