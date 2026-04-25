@@ -428,7 +428,7 @@ class OrderService
 
 #### b. Nguyên tắc Single Responsibility Principle (SRP)
 
-Nguyên tắc SRP là trạng thái mà một class hoặc module nên một, chỉ một lý do để thay đổi.
+Nguyên tắc SRP là trạng thái mà một class hoặc module nên có một và chỉ một lý do để thay đổi.
 
 Điều này không có nghĩa là một class chỉ được có một method. Một class có thể có nhiều method, nhưng các method đó nên cùng phục vụ một trách nhiệm chính.
 
