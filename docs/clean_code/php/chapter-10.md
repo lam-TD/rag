@@ -670,7 +670,7 @@ class UserService
         return $user;
     }
 
-    private function createUser(): User
+    private function createUser(): void
     {
         $this->user = $this->userRepository->create([
             'email' => $this->email,
@@ -679,7 +679,7 @@ class UserService
         ]);
     }
 
-    private function sendWelcomeEmail(User $user): void
+    private function sendWelcomeEmail(): void
     {
         $this->emailService->send(new WelcomeMail($this->user));
     }
@@ -722,7 +722,7 @@ class UserService
         $this->sendPasswordResetEmail();
     }
 
-    private function createUser()
+    private function createUser(): void
     {
         $this->user = $this->userRepository->create([
             'email' => $this->email,
@@ -786,7 +786,7 @@ class RegisterUserAction
         return $user;
     }
 
-    private function createUser(array $data)
+    private function createUser(array $data): void
     {
         $this->user = $this->userRepository->create([
             'email' => $this->email,
@@ -805,6 +805,7 @@ class RegisterUserAction
 ```php
 class ResetUserPasswordAction
 {
+    private User $user;
     private string $resetToken;
 
     public function __construct(
@@ -825,7 +826,7 @@ class ResetUserPasswordAction
     private function updatePassword(User $user, string $newPassword): void
     {
         $user->password = bcrypt($newPassword);
-        $this->userRepository->update($user);
+        $this->user = $this->userRepository->update($user);
     }
 
     private function generateResetToken(): string
@@ -837,7 +838,7 @@ class ResetUserPasswordAction
     private function sendPasswordResetEmail(): void
     {
         // Logic send password reset email
-        $this->emailService->send(new PasswordResetMail($user, $this->resetToken));
+        $this->emailService->send(new PasswordResetMail($this->user, $this->resetToken));
     }
 }
 ```
