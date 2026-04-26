@@ -586,12 +586,12 @@ Ví dụ:
 
 ```php
 class UserService {
-    private UserRepositoryInterface $userRepository;
-    private EmailServiceInterface $emailService;
+    private UserRepository $userRepository;
+    private SMTPEmailService $emailService;
 
     public function __construct(
-        UserRepositoryInterface $userRepository,
-        EmailServiceInterface $emailService
+        UserRepository $userRepository,
+        SMTPEmailService $emailService
     ) {
         $this->userRepository = $userRepository;
         $this->emailService = $emailService;
@@ -769,8 +769,8 @@ class RegisterUserAction
     private User $user;
 
     public function __construct(
-        private UserRepositoryInterface $userRepository,
-        private EmailServiceInterface $emailService,
+        private UserRepository $userRepository,
+        private SMTPEmailService $emailService,
     ) {}
 
     public function execute(array $data): User
@@ -809,8 +809,8 @@ class ResetUserPasswordAction
     private string $resetToken;
 
     public function __construct(
-        private UserRepositoryInterface $userRepository,
-        private EmailServiceInterface $emailService,
+        private UserRepository $userRepository,
+        private SMTPEmailService $emailService,
     ) {}
 
     public function execute(int $userId): void
@@ -843,9 +843,161 @@ class ResetUserPasswordAction
 }
 ```
 
-#### e. Tổ chức cho sự thay đổi
+#### e. Tổ chức cho sự thay đổi và tách biệt sự thay đổi
 
-#### f. Tách biệt sự thay đổi
+Đối với hầu hết các hệ thống, thay đổi là điều luôn xảy ra. Mỗi thay đổi đều có thể mang lại những rủi ro khiến hệ thống hoạt động không đúng như mong muốn.
+Do đó, việc tổ chức code giúp **giảm thiểu rủi ro** từ sự thay đổi là rất quan trọng.
+
+- **Nguyên tắc đóng/mở (Open/Closed Principle - OCP)** là một trong những nguyên tắc giúp giảm thiểu rủi ro từ sự thay đổi.
+  - Định nghĩa: các class nên mở cho việc mở rộng nhưng đóng cho việc sửa đổi.
+  - Cấu trúc class lý tưởng cho phép thêm tính năng mới bằng cách thêm class con thay vì sửa đổi class hiện có.
+
+- **Nguyên tắc đảo ngược phụ thuộc (Dependency Inversion Principle - DIP)** là một nguyên tắc giúp tách biệt sự thay đổi.
+  - Định nghĩa: các class nên phụ thuộc vào abstraction (interface) thay vì implementation (class cụ thể). Điều này giúp tách biệt sự thay đổi, vì khi implementation thay đổi, chỉ cần sửa đổi class đó mà không ảnh hưởng đến các class khác, viết unit test cũng dễ dàng hơn.
+
+Với các ví dụ ở [2.c Mối liên kết](#c-mối-liên-kết) và [2.d Thiết lập kết quả liên kết trong nhiều lớp nhỏ](#d-thiết-lập-kết-quả-liên-kết-trong-nhiều-lớp-nhỏ) đều vi phạm 2 nguyên tắc OCP và DIP.
+
+Cùng phân tích chi tiết các vi phạm:
+
+- Vi phạm OCP: Nếu muốn thay đổi cách gửi email. Ví dụ thay vì dùng SMTP, muốn chuyển sang dùng API của một dịch vụ email, phải sửa đổi `RegisterUserAction` để thay đổi logic gửi email, thay vì chỉ cần tạo một class con mới mà không cần sửa đổi `RegisterUserAction`.
+- Vi phạm DIP: Cả hai class đều phụ thuộc trực tiếp vào `SMTPEmailService`, implementation (class cụ thể). Gây ra các vấn đề:
+  - Làm cho việc thay đổi implementation của email, ví dụ thêm MailgunEmailService (dịch vụ email khác) trở nên khó khăn và dễ gây ra lỗi.
+  - Khi test, cũng phải phụ thuộc vào `SMTPEmailService`, khiến việc viết unit test trở nên khó khăn hơn.
+
+Giải thích bằng ví dụ:
+
+```php
+
+class ResetUserPasswordAction
+{
+    private User $user;
+    private string $resetToken;
+
+    public function __construct(
+        private UserRepository $userRepository,
+        // Vi phạm DIP: phụ thuộc vào implementation cụ thể, không phải abstraction (interface)
+        // Nếu muốn thay đổi sang MailgunEmailService, phải sửa đổi class này
+        private SMTPEmailService $emailService,
+    ) {}
+
+    private function sendPasswordResetEmail(): void
+    {
+        // Vì hàm này phụ thuộc trực tiếp vào SMTPEmailService
+        // Nên nếu muốn đổi sang MailgunEmailService thì có thể phải sửa cả hàm này
+        // trong trường hợp MailgunEmailService không có cùng method send() hoặc có cách gửi email khác
+        $this->emailService->send(new PasswordResetMail($this->user, $this->resetToken));
+    }
+}
+
+```
+
+Viết unit test cho `ResetUserPasswordAction` cũng khó khăn vì phải phụ thuộc vào `SMTPEmailService`, một implementation cụ thể, thay vì có thể mock một interface chung.
+
+```php
+it('sends password reset email after resetting password', function () {
+    $emailServiceMock = Mockery::mock(SMTPEmailService::class);
+    $emailServiceMock->shouldReceive('send')->once();
+
+    $userRepositoryMock = Mockery::mock(UserRepositoryInterface::class);
+    $userRepositoryMock->shouldReceive('find')->andReturn(new User());
+    $userRepositoryMock->shouldReceive('update')->andReturn(new User());
+
+    $action = new ResetUserPasswordAction($userRepositoryMock, $emailServiceMock);
+    $action->execute(1);
+});
+
+```
+
+Khi chuyển sang MailgunEmailService cũng sẽ phải sửa đổi unit test vì phải mock `MailgunEmailService` thay vì `SMTPEmailService`.
+
+Giải pháp
+
+```php
+interface EmailServiceInterface
+{
+    public function send($mail): void;
+}
+
+class SMTPEmailService implements EmailServiceInterface
+{
+    public function send(Mail $mail): void
+    {
+        // Logic send email using SMTP
+    }
+}
+
+class RegisterUserAction
+{
+    public function __construct(
+        private UserRepositoryInterface $userRepository,
+        private EmailServiceInterface $emailService,
+    ) {}
+
+    public function execute(array $data): User
+    {
+        // Create user logic
+
+        $this->sendWelcomeEmail($user);
+
+        return $user;
+    }
+
+    private function sendWelcomeEmail(User $user): void
+    {
+        $this->emailService->send(new WelcomeMail($user));
+    }
+}
+```
+
+Trong ví dụ trên, `RegisterUserAction` phụ thuộc vào `EmailServiceInterface` thay vì một class cụ thể như `SMTPEmailService`.
+Điều này giúp giảm thiểu rủi ro từ sự thay đổi, vì khi cần thêm một cách gửi email mới, chỉ cần tạo một class mới implement `EmailServiceInterface` mà không cần sửa đổi `RegisterUserAction`.
+
+```php
+class MailgunEmailService implements EmailServiceInterface
+{
+    public function send(Mail $mail): void
+    {
+        // Logic send email using Mailgun API
+    }
+}
+```
+
+Khi đó, nếu muốn sử dụng `MailgunEmailService` thay vì `SMTPEmailService`, chỉ cần thay đổi cấu hình dependency injection để inject `MailgunEmailService` vào `RegisterUserAction` mà không cần sửa đổi code của `RegisterUserAction`.
+
+```php
+// Easy to switch email service
+$registerUserUsingMailgun = new RegisterUserAction($userRepository, new MailgunEmailService());
+$resigterUserUsingSMTP = new RegisterUserAction($userRepository, new SMTPEmailService());
+
+// Or if using Laravel, can bind interface to implementation in service provider
+class AppServiceProvider extends ServiceProvider
+{
+    public function register()
+    {
+        $this->app->bind(EmailServiceInterface::class, MailgunEmailService::class);
+    }
+}
+
+```
+
+Viết unit test cho `RegisterUserAction` cũng dễ dàng hơn vì có thể mock `EmailServiceInterface` mà không cần phụ thuộc vào một implementation cụ thể.
+Khi các implementation như `SMTPEmailService` và `MailgunEmailService` có thay đổi thì cũng không ảnh hưởng đến unit test của `RegisterUserAction`.
+
+```php
+it('sends welcome email after registering user', function () {
+    $emailServiceMock = Mockery::mock(EmailServiceInterface::class);
+    $emailServiceMock->shouldReceive('send')->once();
+
+    $userRepositoryMock = Mockery::mock(UserRepositoryInterface::class);
+    $userRepositoryMock->shouldReceive('create')->andReturn(new User());
+
+    $action = new RegisterUserAction($userRepositoryMock, $emailServiceMock);
+    $action->execute([
+        'email' => 'abc@gmail.com',
+        'password' => 'secret',
+    ]);
+});
+```
 
 ## 2. Câu hỏi thảo luận
 
