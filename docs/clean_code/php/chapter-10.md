@@ -860,7 +860,7 @@ Với các ví dụ ở [2.c Mối liên kết](#c-mối-liên-kết) và [2.d T
 Cùng phân tích chi tiết các vi phạm:
 
 - Vi phạm OCP: Nếu muốn thay đổi cách gửi email. Ví dụ thay vì dùng SMTP, muốn chuyển sang dùng API của một dịch vụ email, phải sửa đổi `RegisterUserAction` để thay đổi logic gửi email, thay vì chỉ cần tạo một class con mới mà không cần sửa đổi `RegisterUserAction`.
-- Vi phạm DIP: Cả hai class đều phụ thuộc trực tiếp vào `SMTPEmailService`, implementation (class cụ thể). Gây ra các vấn đề:
+- Vi phạm DIP: Phụ thuộc trực tiếp vào `SMTPEmailService`, implementation (class cụ thể). Gây ra các vấn đề:
   - Làm cho việc thay đổi implementation của email, ví dụ thêm MailgunEmailService (dịch vụ email khác) trở nên khó khăn và dễ gây ra lỗi.
   - Khi test, cũng phải phụ thuộc vào `SMTPEmailService`, khiến việc viết unit test trở nên khó khăn hơn.
 
@@ -868,11 +868,8 @@ Giải thích bằng ví dụ:
 
 ```php
 
-class ResetUserPasswordAction
+class RegisterUserAction
 {
-    private User $user;
-    private string $resetToken;
-
     public function __construct(
         private UserRepository $userRepository,
         // Vi phạm DIP: phụ thuộc vào implementation cụ thể, không phải abstraction (interface)
@@ -880,35 +877,56 @@ class ResetUserPasswordAction
         private SMTPEmailService $emailService,
     ) {}
 
-    private function sendPasswordResetEmail(): void
+    private function sendWelcomeEmail(): void
     {
-        // Vì hàm này phụ thuộc trực tiếp vào SMTPEmailService
-        // Nên nếu muốn đổi sang MailgunEmailService thì có thể phải sửa cả hàm này
+        // Hàm này phụ thuộc trực tiếp vào SMTPEmailService
+        // Nếu muốn đổi sang MailgunEmailService thì có thể phải sửa
         // trong trường hợp MailgunEmailService không có cùng method send() hoặc có cách gửi email khác
-        $this->emailService->send(new PasswordResetMail($this->user, $this->resetToken));
+        $this->emailService->send(new WelcomeMail($this->user));
     }
 }
 
 ```
 
-Viết unit test cho `ResetUserPasswordAction` cũng khó khăn vì phải phụ thuộc vào `SMTPEmailService`, một implementation cụ thể, thay vì có thể mock một interface chung.
+Viết unit test cho `RegisterUserAction` cũng khó khăn vì phải phụ thuộc vào `SMTPEmailService`, một implementation cụ thể, thay vì có thể mock một interface chung.
 
 ```php
-it('sends password reset email after resetting password', function () {
+it('sends welcome email after registering user', function () {
     $emailServiceMock = Mockery::mock(SMTPEmailService::class);
     $emailServiceMock->shouldReceive('send')->once();
 
     $userRepositoryMock = Mockery::mock(UserRepositoryInterface::class);
-    $userRepositoryMock->shouldReceive('find')->andReturn(new User());
-    $userRepositoryMock->shouldReceive('update')->andReturn(new User());
+    $userRepositoryMock->shouldReceive('create')->andReturn(new User());
 
-    $action = new ResetUserPasswordAction($userRepositoryMock, $emailServiceMock);
-    $action->execute(1);
+    $action = new RegisterUserAction($userRepositoryMock, $emailServiceMock);
+    $result = $action->execute([
+        'email' => 'abc@gmail.com',
+        'password' => 'secret',
+    ]);
+
+    expect($result)->toBeInstanceOf(User::class);
+});
+
+// Nếu muốn switch sang MailgunEmailService, phải sửa đổi unit test để mock MailgunEmailService thay vì SMTPEmailService
+it('sends welcome email after registering user', function () {
+    $emailServiceMock = Mockery::mock(MailgunEmailService::class);
+    // Nếu MailgunEmailService có method send() giống SMTPEmailService thì có thể giữ nguyên,
+    // nhưng nếu không thì phải sửa đổi để phù hợp với cách gửi email của MailgunEmailService
+    $emailServiceMock->shouldReceive('send2')->once();
+
+    $userRepositoryMock = Mockery::mock(UserRepositoryInterface::class);
+    $userRepositoryMock->shouldReceive('create')->andReturn(new User());
+
+    $action = new RegisterUserAction($userRepositoryMock, $emailServiceMock);
+    $result = $action->execute([
+        'email' => 'abc@gmail.com',
+        'password' => 'secret',
+    ]);
+
+    expect($result)->toBeInstanceOf(User::class);
 });
 
 ```
-
-Khi chuyển sang MailgunEmailService cũng sẽ phải sửa đổi unit test vì phải mock `MailgunEmailService` thay vì `SMTPEmailService`.
 
 Giải pháp
 
@@ -965,11 +983,7 @@ class MailgunEmailService implements EmailServiceInterface
 Khi đó, nếu muốn sử dụng `MailgunEmailService` thay vì `SMTPEmailService`, chỉ cần thay đổi cấu hình dependency injection để inject `MailgunEmailService` vào `RegisterUserAction` mà không cần sửa đổi code của `RegisterUserAction`.
 
 ```php
-// Easy to switch email service
-$registerUserUsingMailgun = new RegisterUserAction($userRepository, new MailgunEmailService());
-$resigterUserUsingSMTP = new RegisterUserAction($userRepository, new SMTPEmailService());
-
-// Or if using Laravel, can bind interface to implementation in service provider
+// Lravel service provider cấu hình để inject MailgunEmailService cho EmailServiceInterface
 class AppServiceProvider extends ServiceProvider
 {
     public function register()
@@ -978,9 +992,14 @@ class AppServiceProvider extends ServiceProvider
     }
 }
 
+// Hoặc nếu muốn switch thủ công
+$registerUserUsingMailgun = new RegisterUserAction($userRepository, new MailgunEmailService());
+$resigterUserUsingSMTP = new RegisterUserAction($userRepository, new SMTPEmailService());
+
 ```
 
 Viết unit test cho `RegisterUserAction` cũng dễ dàng hơn vì có thể mock `EmailServiceInterface` mà không cần phụ thuộc vào một implementation cụ thể.
+
 Khi các implementation như `SMTPEmailService` và `MailgunEmailService` có thay đổi thì cũng không ảnh hưởng đến unit test của `RegisterUserAction`.
 
 ```php
@@ -992,10 +1011,12 @@ it('sends welcome email after registering user', function () {
     $userRepositoryMock->shouldReceive('create')->andReturn(new User());
 
     $action = new RegisterUserAction($userRepositoryMock, $emailServiceMock);
-    $action->execute([
+    $result = $action->execute([
         'email' => 'abc@gmail.com',
         'password' => 'secret',
     ]);
+
+    expect($result)->toBeInstanceOf(User::class);
 });
 ```
 
