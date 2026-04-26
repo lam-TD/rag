@@ -739,7 +739,7 @@ class UserService
     private function updatePassword(User $user, string $newPassword): void
     {
         $user->password = bcrypt($newPassword);
-        $this->userRepository->save($user);
+        $this->userRepository->update($user);
     }
 
     private function generateResetToken(): string
@@ -761,6 +761,13 @@ Cách tốt hơn là tách `register` và `resetPassword` thành các class riê
 ```php
 class RegisterUserAction
 {
+    const ROLE_MEMBER = 'member';
+
+    private string $email;
+    private string $plainPassword;
+    private string $role;
+    private User $user;
+
     public function __construct(
         private UserRepositoryInterface $userRepository,
         private EmailServiceInterface $emailService,
@@ -768,19 +775,29 @@ class RegisterUserAction
 
     public function execute(array $data): User
     {
-        $email = $data['email'];
-        $plainPassword = $data['password'];
-        $role = 'member';
+        $this->email = $data['email'];
+        $this->plainPassword = $data['password'];
+        $this->role = self::ROLE_MEMBER;
 
-        $user = $this->userRepository->create([
-            'email' => $email,
-            'password' => bcrypt($plainPassword),
-            'role' => $role,
-        ]);
-
-        $this->emailService->send(new WelcomeMail($user));
+        $this->createUser()
+        
+        $this->sendWelcomeEmail();
 
         return $user;
+    }
+
+    private function createUser(array $data)
+    {
+        $this->user = $this->userRepository->create([
+            'email' => $this->email,
+            'password' => bcrypt($this->plainPassword),
+            'role' => $this->role,
+        ]);
+    }
+
+    private function sendWelcomeEmail(): void
+    {
+        $this->emailService->send(new WelcomeMail($this->user));
     }
 }
 ```
@@ -808,7 +825,7 @@ class ResetUserPasswordAction
     private function updatePassword(User $user, string $newPassword): void
     {
         $user->password = bcrypt($newPassword);
-        $this->userRepository->save($user);
+        $this->userRepository->update($user);
     }
 
     private function generateResetToken(): string
