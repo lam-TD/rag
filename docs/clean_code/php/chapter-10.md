@@ -907,7 +907,8 @@ it('sends welcome email after registering user', function () {
     expect($result)->toBeInstanceOf(User::class);
 });
 
-// Nếu muốn switch sang MailgunEmailService, phải sửa đổi unit test để mock MailgunEmailService thay vì SMTPEmailService
+// Nếu muốn switch sang MailgunEmailService,
+// phải sửa đổi unit test để mock MailgunEmailService thay vì SMTPEmailService
 it('sends welcome email after registering user', function () {
     $emailServiceMock = Mockery::mock(MailgunEmailService::class);
     // Nếu MailgunEmailService có method send() giống SMTPEmailService thì có thể giữ nguyên,
