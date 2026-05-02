@@ -195,34 +195,31 @@ ProductExportAction
 Ví dụ:
 
 ```php
-class Product extends Model {
-    public function publish(): void
+interface Authenticatable {
+    public function isAvailableForSale(): bool;
+    public function sell(): void;
+}
+
+class User extends Model {
+    public function canLogin(): void
     {
         // Logic to publish the product
     }
 
-    public function applyDiscount(): void
+    public function recordLogin(): void
+    {
+        // Logic to archive the product
+    }
+
+    
+    public function lock(): void
     {
         // Logic to archive the product
     }
 }
 ```
 
-### b. Tính bất đối xứng giữa dữ liệu và đối tượng
-
-Ví dụ về cấu trúc dữ liệu:
-
-```php
-class CreateOrderData
-{
-    public function __construct(
-        public int $userId,
-        public array $items,
-        public string $paymentMethod
-    ) {}
-}
-```
-
+### c. Tính bất đối xứng giữa dữ liệu và đối tượng
 
 ### 1.3 Nguyên tác Demeter
 
