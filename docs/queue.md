@@ -312,4 +312,17 @@ Một **message broker** — đứng giữa producer và consumer, đóng vai tr
 
 -----
 
+User → POST /upload → FastAPI:
+   1. Lưu file
+   2. Đẩy 1 "message" vào RabbitMQ: {file_id: 123, path: "..."}
+   3. Trả 202 Accepted ngay lập tức (< 1s)
+
+[Tách biệt hoàn toàn]
+
+Worker (process riêng) → lắng nghe RabbitMQ:
+   1. Lấy message ra
+   2. Parse PDF, chunk, embed, lưu DB
+   3. Báo cho RabbitMQ "xong rồi" (ack)
+
+
 *Tài liệu chuẩn bị cho buổi thảo luận refactor luồng ingestion. Mọi câu hỏi/thảo luận, ping trong channel team.*
